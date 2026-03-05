@@ -84,13 +84,14 @@ textarea.inp{resize:vertical;min-height:75px;}
 </div>
 <div style="margin-bottom:20px;">
   <div class="ir"><span class="ik">Dokumen</span><span class="iv">Tanda Tangan Resmi MEFORASH</span></div>
-  <div class="ir"><span class="ik">Pemilik</span><span class="iv">pallongjunior@gmail.com</span></div>
+  <div class="ir"><span class="ik">Pemilik</span><span class="iv"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="abdbcac7c7c4c5ccc1dec5c2c4d9ebccc6cac2c785c8c4c6">[email&#160;protected]</a></span></div>
   <div class="ir"><span class="ik">Status</span><span class="iv"><span class="badge bw">🔒 Terlindungi</span></span></div>
   <div class="ir"><span class="ik">Akses</span><span class="iv">Memerlukan Persetujuan</span></div>
 </div>
 <div class="div"><span>◆</span></div>
 <p style="font-size:12px;color:var(--ts);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">Tanda tangan ini dilindungi sistem otorisasi MEFORASH.<br>Scan QR di atas atau klik tombol untuk mengajukan akses.</p>
 <button class="btn bg" onclick="show('s-form')">Ajukan Permintaan Akses →</button>
+<p style="font-size:10px;color:var(--ts);text-align:center;margin-top:14px;opacity:0.5;" id="admin-hint"></p>
 </div>
 </div>
 
@@ -173,12 +174,13 @@ textarea.inp{resize:vertical;min-height:75px;}
 </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── CONFIG ──
 const OWNER='pallongjunior@gmail.com';
 const BASE='https://nayagh.github.io/meforash-signature/';
 const DID='MFR-'+Date.now().toString(36).toUpperCase();
-const VURL=BASE+'?id='+DID+'&admin=1';
+const VURL=BASE+'?id='+DID;         // QR → orang lain, ke form biasa
+const ADMIN_URL=BASE+'?admin=1';    // hanya untuk pemilik
 const SIG='IMG_7473.jpeg';
 let S={name:'',email:'',inst:'',purpose:''};
 
@@ -316,8 +318,23 @@ const QRGen=(function(){
 window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('qr-doc-id').textContent=DID;
   QRGen.draw(VURL, document.getElementById('qrcode'), 5);
+
   const p=new URLSearchParams(window.location.search);
-  if(p.get('admin')==='1'){show('s-wait');document.getElementById('adm').style.display='block';}
+  if(p.get('admin')==='1'){
+    // Pemilik buka link admin → langsung ke panel tunggu + tombol approve
+    show('s-wait');
+    document.getElementById('adm').style.display='block';
+    document.getElementById('ai-w').textContent='Belum ada permintaan masuk. Panel ini aktif dan siap menerima persetujuan.';
+  } else if(p.get('id')){
+    // Orang lain scan QR → langsung ke form
+    show('s-form');
+  }
+  // Tampilkan link admin hanya di halaman utama (untuk pemilik)
+  const hint = document.getElementById('admin-hint');
+  if(hint && !p.get('admin') && !p.get('id')) {
+    hint.textContent = '🔑 Link Admin Anda: ' + ADMIN_URL;
+    hint.style.opacity = '0.4';
+  }
 });
 
 // ── SCREENS ──
@@ -375,7 +392,4 @@ async function decide(v){
 
 // ── PROTEKSI ──
 document.addEventListener('contextmenu',e=>{if(e.target.id==='sig-img'){e.preventDefault();alert('Tanda tangan dilindungi sistem MEFORASH.');}});
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['p','s','c'].includes(e.key)&&document.getElementById('s-ok').classList.contains('active')){e.preventDefault();alert('Penyimpanan dinonaktifkan oleh sistem proteksi MEFORASH.');}});
-</script>
-</body>
-</html>
+document.addEventListener('keydown',e=>{if
