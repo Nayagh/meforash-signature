@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Verifikasi Tanda Tangan – MEFORASH</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --gold: #B8962E;
+  --gold-light: #D4AF60;
+  --gold-pale: #F0E6C8;
+  --ink: #0F0C08;
+  --parchment: #FAF6EE;
+  --parchment-dark: #EDE4D0;
+  --purple: #3D1F6B;
+  --red: #8B1A1A;
+  --green: #1A5C2E;
+  --text: #2C1F0E;
+  --text-soft: #5C4A30;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Lora', Georgia, serif;
+  background: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 10% 10%, rgba(184,150,46,0.07), transparent),
+    radial-gradient(ellipse 50% 60% at 90% 90%, rgba(61,31,107,0.13), transparent),
+    repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(184,150,46,0.018) 60px, rgba(184,150,46,0.018) 61px),
+    repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(184,150,46,0.018) 60px, rgba(184,150,46,0.018) 61px);
+  pointer-events: none;
+}
+
+.screen { display: none; width: 100%; max-width: 560px; position: relative; z-index: 1; animation: fadeUp 0.45s ease both; }
+.screen.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── CARD ── */
+.card {
+  background: var(--parchment);
+  border-radius: 3px;
+  padding: 40px 36px;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(184,150,46,0.55), 0 0 0 5px var(--ink), 0 0 0 6px rgba(184,150,46,0.18), 0 40px 90px rgba(0,0,0,0.65);
+}
+.card::before { content:''; position:absolute; inset:10px; border:1px solid rgba(184,150,46,0.2); border-radius:1px; pointer-events:none; }
+.cc { position:absolute; width:18px; height:18px; border-color:var(--gold-light); border-style:solid; opacity:0.5; }
+.cc.tl { top:15px; left:15px; border-width:1px 0 0 1px; }
+.cc.tr { top:15px; right:15px; border-width:1px 1px 0 0; }
+.cc.bl { bottom:15px; left:15px; border-width:0 0 1px 1px; }
+.cc.br { bottom:15px; right:15px; border-width:0 1px 1px 0; }
+
+/* ── SEAL ── */
+.seal {
+  width: 68px; height: 68px;
+  background: var(--purple);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px;
+  font-size: 30px;
+  box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px var(--parchment-dark), 0 8px 28px rgba(0,0,0,0.3);
+  position: relative;
+}
+.seal::after {
+  content:''; position:absolute; inset:-9px;
+  border:1px dashed rgba(184,150,46,0.35); border-radius:50%;
+  animation: rot 18s linear infinite;
+}
+@keyframes rot { to { transform:rotate(360deg); } }
+
+/* ── TYPE ── */
+.brand { font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.35em; text-transform:uppercase; color:var(--gold); text-align:center; margin-bottom:4px; }
+.title { font-family:'Playfair Display',serif; font-size:clamp(19px,4vw,25px); font-weight:900; color:var(--text); text-align:center; line-height:1.25; margin-bottom:5px; }
+.sub   { font-size:13px; color:var(--text-soft); text-align:center; font-style:italic; margin-bottom:24px; }
+
+.divider { display:flex; align-items:center; gap:12px; margin:22px 0; }
+.divider::before,.divider::after { content:''; flex:1; height:1px; background:linear-gradient(to right,transparent,var(--gold-light),transparent); }
+.divider span { color:var(--gold); font-size:11px; opacity:0.6; }
+
+/* ── QR BOX ── */
+.qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.qr-box {
+  background: white;
+  padding: 16px;
+  border: 1px solid rgba(184,150,46,0.4);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  position: relative;
+}
+
+/* QR corner marks */
+.qr-box::before, .qr-box::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  border-color: var(--gold);
+  border-style: solid;
+}
+.qr-box::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+.qr-box::after  { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
+#qrcode canvas, #qrcode img { display: block; }
+
+.qr-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.qr-id {
+  font-size: 11px;
+  color: var(--gold);
+  font-family: monospace;
+  letter-spacing: 0.1em;
+  background: rgba(184,150,46,0.08);
+  padding: 4px 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(184,150,46,0.2);
+}
+
+/* ── INFO TABLE ── */
+.info-row { display:flex; justify-content:space-between; align-items:flex-start; padding:9px 0; border-bottom:1px solid rgba(184,150,46,0.12); gap:12px; }
+.info-row:last-child { border-bottom:none; }
+.ik { font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-soft); white-space:nowrap; flex-shrink:0; }
+.iv { font-size:13px; color:var(--text); text-align:right; word-break:break-word; }
+
+/* ── FIELDS ── */
+.lbl { display:block; font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-soft); margin-bottom:7px; }
+.inp {
+  width:100%; padding:11px 14px; background:white;
+  border:1px solid rgba(184,150,46,0.35); border-radius:2px;
+  font-family:'Lora',serif; font-size:14px; color:var(--text);
+  outline:none; transition:border-color .2s,box-shadow .2s; margin-bottom:15px;
+}
+.inp:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(184,150,46,0.1); }
+textarea.inp { resize:vertical; min-height:75px; }
+
+/* ── BUTTONS ── */
+.btn { width:100%; padding:13px 24px; border:none; border-radius:2px; font-family:'Playfair Display',serif; font-size:12px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; cursor:pointer; transition:all .2s; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-gold { background:linear-gradient(135deg,var(--gold-light),var(--gold),#9A7820); color:var(--ink); box-shadow:0 4px 18px rgba(184,150,46,0.3); }
+.btn-gold:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 28px rgba(184,150,46,0.4); }
+.btn-sm { background:transparent; color:var(--text-soft); border:1px solid rgba(184,150,46,0.3); margin-top:9px; font-size:11px; }
+.btn-sm:hover { border-color:var(--gold); color:var(--text); }
+.btn-ok  { background:linear-gradient(135deg,#2E7D32,#1B5E20); color:#fff; box-shadow:0 4px 18px rgba(46,125,50,.3); margin-bottom:9px; }
+.btn-ok:hover  { transform:translateY(-1px); box-shadow:0 8px 28px rgba(46,125,50,.4); }
+.btn-no  { background:linear-gradient(135deg,#C62828,#8B1A1A); color:#fff; box-shadow:0 4px 18px rgba(198,40,40,.3); }
+.btn-no:hover  { transform:translateY(-1px); box-shadow:0 8px 28px rgba(198,40,40,.4); }
+
+/* ── BADGES ── */
+.badge { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:2px; font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; }
+.b-wait { background:rgba(184,150,46,.12); color:var(--gold); border:1px solid rgba(184,150,46,.3); }
+.b-ok   { background:rgba(30,92,46,.12);  color:var(--green); border:1px solid rgba(30,92,46,.3); }
+.b-no   { background:rgba(139,26,26,.12); color:var(--red);   border:1px solid rgba(139,26,26,.3); }
+
+.spin { display:inline-block; width:12px; height:12px; border:2px solid var(--gold); border-top-color:transparent; border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle; margin-right:5px; }
+@keyframes sp { to { transform:rotate(360deg); } }
+
+/* ── CIRCLE ICONS ── */
+.circ { width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:32px; animation:pop .4s cubic-bezier(.34,1.56,.64,1) both; }
+.circ-ok { background:var(--green); box-shadow:0 0 0 5px rgba(30,92,46,.15),0 10px 35px rgba(0,0,0,.2); }
+.circ-no { background:var(--red);   box-shadow:0 0 0 5px rgba(139,26,26,.15),0 10px 35px rgba(0,0,0,.2); }
+@keyframes pop { from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
+
+.ai-box { background:rgba(61,31,107,.08); border-left:3px solid var(--purple); border-radius:0 3px 3px 0; padding:13px 15px; font-size:13px; color:var(--text); font-style:italic; margin:14px 0; line-height:1.65; }
+
+/* sig protection */
+#sig-img { max-height:110px; max-width:100%; display:block; margin:auto; pointer-events:none; -webkit-user-drag:none; user-select:none; }
+.sig-frame { background:white; border:1px solid rgba(184,150,46,.3); border-radius:2px; padding:20px; text-align:center; margin-bottom:10px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SCREEN 0 – QR CODE (halaman utama)
+══════════════════════════════════════ -->
+<div class="screen active" id="s-qr">
+  <div class="card">
+    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+
+    <div class="seal">🔏</div>
+    <div class="brand">Jurnal Penelitian · STT Arastamar Wamena</div>
+    <div class="title">Tanda Tangan Resmi</div>
+    <div class="sub">MEFORASH · Dokumen Terproteksi</div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <div class="qr-wrap">
+      <div class="qr-box">
+        <div id="qrcode"></div>
+      </div>
+      <div class="qr-label">Pindai untuk Meminta Akses</div>
+      <div class="qr-id" id="qr-doc-id">–</div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="info-row"><span class="ik">Dokumen</span><span class="iv">Tanda Tangan Resmi MEFORASH</span></div>
+      <div class="info-row"><span class="ik">Pemilik</span><span class="iv">pallongjunior@gmail.com</span></div>
+      <div class="info-row"><span class="ik">Status</span><span class="iv"><span class="badge b-wait">🔒 Terlindungi</span></span></div>
+      <div class="info-row"><span class="ik">Akses</span><span class="iv">Memerlukan Persetujuan</span></div>
+    </div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <p style="font-size:12px;color:var(--text-soft);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">
+      Tanda tangan ini dilindungi sistem otorisasi MEFORASH.<br>
+      Scan QR di atas atau klik tombol untuk mengajukan permintaan akses.
+    </p>
+
+    <button class="btn btn-gold" onclick="showScreen('s-form')">
+      Ajukan Permintaan Akses →
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1 – FORM PERMINTAAN
+══════════════════════════════════════ -->
+<div class="screen" id="s-form">
+  <div class="card">
+    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+
+    <div class="seal" style="background:#5A3490;">📋</div>
+    <div class="brand">Formulir Akses</div>
+    <div class="title">Permintaan Verifikasi</div>
+    <div class="sub">Isi data diri untuk mengajukan akses tanda tangan</div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <label class="lbl">Nama Lengkap</label>
+    <input type="text" class="inp" id="f-name" placeholder="Nama lengkap Anda…">
+
+    <label class="lbl">Institusi / Afiliasi</label>
+    <input type="text" class="inp" id="f-inst" placeholder="Universitas / Lembaga…">
+
+    <label class="lbl">Email Anda</label>
+    <input type="email" class="inp" id="f-email" placeholder="email@anda.com">
+
+    <label class="lbl">Keperluan Akses</label>
+    <textarea class="inp" id="f-purpose" placeholder="Jelaskan keperluan Anda…"></textarea>
+
+    <button class="btn btn-gold" id="btn-submit" onclick="submitRequest()">
+      Kirim Permintaan →
+    </button>
+    <button class="btn btn-sm" onclick="showScreen('s-qr')">← Kembali ke QR Code</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2 – MENUNGGU
+══════════════════════════════════════ -->
+<div class="screen" id="s-wait">
+  <div class="card">
+    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+
+    <div class="seal" style="background:#7B5E00;">⏳</div>
+    <div class="brand">Status Permintaan</div>
+    <div class="title">Menunggu Persetujuan</div>
+    <div class="sub">Pemegang tanda tangan sedang meninjau permintaan Anda</div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <div id="wait-info"></div>
+
+    <div style="text-align:center;margin:16px 0;">
+      <span class="badge b-wait"><span class="spin"></span>Menunggu Keputusan</span>
+    </div>
+
+    <div class="ai-box" id="ai-wait">Menganalisis permintaan…</div>
+
+    <!-- PANEL ADMIN: hanya muncul jika ?admin=1 -->
+    <div id="admin-panel" style="display:none;">
+      <div class="divider"><span>◆</span></div>
+      <p class="lbl" style="text-align:center;margin-bottom:12px;">Panel Pemegang Tanda Tangan</p>
+      <div class="ai-box" id="ai-admin" style="margin-bottom:14px;"></div>
+      <button class="btn btn-ok" onclick="decide('ok')">✔ Setujui Akses</button>
+      <button class="btn btn-no" onclick="decide('no')">✖ Tolak Permintaan</button>
+    </div>
+
+    <button class="btn btn-sm" onclick="showScreen('s-qr')">← Kembali ke QR Code</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 3 – DISETUJUI
+══════════════════════════════════════ -->
+<div class="screen" id="s-ok">
+  <div class="card">
+    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+
+    <div class="circ circ-ok">✓</div>
+    <div class="brand">Akses Disetujui</div>
+    <div class="title">Tanda Tangan Terverifikasi</div>
+    <div class="sub" id="ok-sub">Disetujui oleh pemegang tanda tangan</div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <div class="sig-frame">
+      <img id="sig-img" src="" alt="Tanda Tangan Resmi" draggable="false">
+    </div>
+
+    <div class="ai-box" id="ai-ok"></div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <div id="ok-info" style="margin-bottom:16px;"></div>
+    <div style="text-align:center;"><span class="badge b-ok">✓ Diverifikasi Resmi</span></div>
+    <p style="font-size:11px;color:var(--text-soft);font-style:italic;text-align:center;margin-top:14px;line-height:1.6;">
+      Akses ini berlaku satu sesi. Dilarang mendistribusikan tanpa izin.
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 4 – DITOLAK
+══════════════════════════════════════ -->
+<div class="screen" id="s-no">
+  <div class="card">
+    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+
+    <div class="circ circ-no">✖</div>
+    <div class="brand">Akses Ditolak</div>
+    <div class="title">Permintaan Tidak Disetujui</div>
+    <div class="sub">Pemegang tanda tangan menolak permintaan ini</div>
+
+    <div class="divider"><span>◆</span></div>
+
+    <div class="ai-box" id="ai-no"></div>
+    <div style="text-align:center;margin:16px 0;"><span class="badge b-no">✖ Permintaan Ditolak</span></div>
+    <p style="font-size:12px;color:var(--text-soft);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">
+      Silakan ajukan kembali dengan informasi yang lebih lengkap.
+    </p>
+    <button class="btn btn-gold" onclick="showScreen('s-qr')">Kembali ke QR Code</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════
+//  CONFIG
+// ════════════════════════════════
+const OWNER   = 'pallongjunior@gmail.com';
+const DOC_ID  = 'MFR-' + Date.now().toString(36).toUpperCase();
+const VERIFY_URL = window.location.href.split('?')[0] + '?id=' + DOC_ID + '&admin=1';
+
+// State
+let S = { name:'', email:'', inst:'', purpose:'' };
+
+// ════════════════════════════════
+//  INIT – Generate QR Code
+// ════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('qr-doc-id').textContent = DOC_ID;
+
+  new QRCode(document.getElementById('qrcode'), {
+    text: VERIFY_URL,
+    width: 200,
+    height: 200,
+    colorDark: '#0F0C08',
+    colorLight: '#FFFFFF',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  // If opened via scan (?admin=1), jump straight to admin waiting screen
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('admin') === '1') {
+    showScreen('s-wait');
+    document.getElementById('admin-panel').style.display = 'block';
+  }
+});
+
+// ════════════════════════════════
+//  SCREENS
+// ════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function fmt() {
+  return new Date().toLocaleString('id-ID', { dateStyle:'long', timeStyle:'short' });
+}
+
+function rows(arr) {
+  return arr.map(([k,v]) => `<div class="info-row"><span class="ik">${k}</span><span class="iv">${v}</span></div>`).join('');
+}
+
+// ════════════════════════════════
+//  CLAUDE API
+// ════════════════════════════════
+async function claude(system, user) {
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system,
+        messages: [{ role:'user', content: user }]
+      })
+    });
+    const d = await r.json();
+    return d.content?.map(b => b.text||'').join('') || '–';
+  } catch(e) { return null; }
+}
+
+// ════════════════════════════════
+//  SUBMIT
+// ════════════════════════════════
+async function submitRequest() {
+  const name    = document.getElementById('f-name').value.trim();
+  const email   = document.getElementById('f-email').value.trim();
+  const inst    = document.getElementById('f-inst').value.trim();
+  const purpose = document.getElementById('f-purpose').value.trim();
+
+  if (!name || !email || !purpose) {
+    alert('Mohon lengkapi: Nama, Email, dan Keperluan.');
+    return;
+  }
+
+  S = { name, email, inst: inst||'–', purpose };
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Memproses…';
+
+  // Populate waiting screen info
+  document.getElementById('wait-info').innerHTML = rows([
+    ['ID Dokumen', DOC_ID],
+    ['Pemohon',    S.name],
+    ['Email',      S.email],
+    ['Institusi',  S.inst],
+    ['Keperluan',  S.purpose],
+    ['Waktu',      fmt()],
+  ]);
+
+  showScreen('s-wait');
+  btn.disabled = false;
+  btn.innerHTML = 'Kirim Permintaan →';
+
+  // AI pesan tunggu
+  const msg = await claude(
+    'Kamu adalah asisten resmi MEFORASH, jurnal STT Arastamar Wamena. Balas formal, ringkas (2-3 kalimat), Bahasa Indonesia.',
+    `${S.name} dari ${S.inst} meminta akses tanda tangan resmi. Alasan: "${S.purpose}". Tulis pesan konfirmasi bahwa permintaan diterima dan sedang menunggu persetujuan pemegang.`
+  );
+  document.getElementById('ai-wait').textContent = msg || 'Permintaan Anda telah diterima dan sedang menunggu persetujuan dari pemegang tanda tangan.';
+
+  // Admin panel jika ?admin=1
+  if (new URLSearchParams(window.location.search).get('admin') === '1') {
+    document.getElementById('admin-panel').style.display = 'block';
+    loadAdminAnalysis();
+  }
+}
+
+async function loadAdminAnalysis() {
+  const el = document.getElementById('ai-admin');
+  el.textContent = 'Menganalisis permintaan…';
+  const txt = await claude(
+    `Kamu asisten pribadi pemegang tanda tangan MEFORASH (${OWNER}). Evaluasi permintaan akses. Bahasa Indonesia formal, 3-4 kalimat.`,
+    `Nama: ${S.name} | Email: ${S.email} | Institusi: ${S.inst} | Keperluan: "${S.purpose}". Apakah permintaan ini legitimate? Beri rekomendasi singkat.`
+  );
+  el.textContent = txt || 'Harap tinjau permintaan ini secara manual.';
+}
+
+// ════════════════════════════════
+//  KEPUTUSAN
+// ════════════════════════════════
+async function decide(v) {
+  if (v === 'ok') {
+    // Tampilkan tanda tangan
+    document.getElementById('sig-img').src = 'IMG_7473.jpeg';
+    document.getElementById('ok-sub').textContent = `Disetujui oleh ${OWNER} pada ${fmt()}`;
+    document.getElementById('ok-info').innerHTML = rows([
+      ['ID Dokumen', DOC_ID],
+      ['Disetujui Untuk', S.name],
+      ['Email Pemohon', S.email],
+      ['Keperluan', S.purpose],
+      ['Waktu', fmt()],
+    ]);
+
+    const msg = await claude(
+      'Kamu sistem resmi MEFORASH. Pesan persetujuan resmi, formal, Bahasa Indonesia, 2-3 kalimat.',
+      `Akses tanda tangan DISETUJUI untuk ${S.name} (${S.email}). Keperluan: "${S.purpose}". Tulis konfirmasi resmi.`
+    );
+    document.getElementById('ai-ok').textContent = msg || 'Akses Anda telah disetujui secara resmi. Gunakan hanya untuk keperluan yang telah disebutkan.';
+    showScreen('s-ok');
+
+  } else {
+    const msg = await claude(
+      'Kamu sistem resmi MEFORASH. Pesan penolakan sopan tapi tegas, Bahasa Indonesia, 2-3 kalimat.',
+      `Permintaan dari ${S.name} DITOLAK oleh pemegang. Keperluan: "${S.purpose}". Tulis pesan penolakan resmi.`
+    );
+    document.getElementById('ai-no').textContent = msg || 'Permintaan Anda tidak dapat disetujui saat ini. Silakan ajukan kembali dengan informasi yang lebih lengkap.';
+    showScreen('s-no');
+  }
+}
+
+// ════════════════════════════════
+//  PROTEKSI TANDA TANGAN
+// ════════════════════════════════
+document.addEventListener('contextmenu', e => {
+  if (e.target.id === 'sig-img') { e.preventDefault(); alert('Tanda tangan dilindungi sistem MEFORASH.'); }
+});
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && ['p','s','c'].includes(e.key)) {
+    if (document.getElementById('s-ok').classList.contains('active')) {
+      e.preventDefault();
+      alert('Penyimpanan dinonaktifkan oleh sistem proteksi MEFORASH.');
+    }
+  }
+});
+</script>
+</body>
+</html>
