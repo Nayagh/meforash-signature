@@ -4,537 +4,378 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Verifikasi Tanda Tangan – MEFORASH</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
-
-:root {
-  --gold: #B8962E;
-  --gold-light: #D4AF60;
-  --gold-pale: #F0E6C8;
-  --ink: #0F0C08;
-  --parchment: #FAF6EE;
-  --parchment-dark: #EDE4D0;
-  --purple: #3D1F6B;
-  --red: #8B1A1A;
-  --green: #1A5C2E;
-  --text: #2C1F0E;
-  --text-soft: #5C4A30;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: 'Lora', Georgia, serif;
-  background: var(--ink);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-  overflow-x: hidden;
-}
-
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background:
-    radial-gradient(ellipse 60% 50% at 10% 10%, rgba(184,150,46,0.07), transparent),
-    radial-gradient(ellipse 50% 60% at 90% 90%, rgba(61,31,107,0.13), transparent),
-    repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(184,150,46,0.018) 60px, rgba(184,150,46,0.018) 61px),
-    repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(184,150,46,0.018) 60px, rgba(184,150,46,0.018) 61px);
-  pointer-events: none;
-}
-
-.screen { display: none; width: 100%; max-width: 560px; position: relative; z-index: 1; animation: fadeUp 0.45s ease both; }
-.screen.active { display: block; }
-@keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-
-/* ── CARD ── */
-.card {
-  background: var(--parchment);
-  border-radius: 3px;
-  padding: 40px 36px;
-  position: relative;
-  box-shadow: 0 0 0 1px rgba(184,150,46,0.55), 0 0 0 5px var(--ink), 0 0 0 6px rgba(184,150,46,0.18), 0 40px 90px rgba(0,0,0,0.65);
-}
-.card::before { content:''; position:absolute; inset:10px; border:1px solid rgba(184,150,46,0.2); border-radius:1px; pointer-events:none; }
-.cc { position:absolute; width:18px; height:18px; border-color:var(--gold-light); border-style:solid; opacity:0.5; }
-.cc.tl { top:15px; left:15px; border-width:1px 0 0 1px; }
-.cc.tr { top:15px; right:15px; border-width:1px 1px 0 0; }
-.cc.bl { bottom:15px; left:15px; border-width:0 0 1px 1px; }
-.cc.br { bottom:15px; right:15px; border-width:0 1px 1px 0; }
-
-/* ── SEAL ── */
-.seal {
-  width: 68px; height: 68px;
-  background: var(--purple);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 18px;
-  font-size: 30px;
-  box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px var(--parchment-dark), 0 8px 28px rgba(0,0,0,0.3);
-  position: relative;
-}
-.seal::after {
-  content:''; position:absolute; inset:-9px;
-  border:1px dashed rgba(184,150,46,0.35); border-radius:50%;
-  animation: rot 18s linear infinite;
-}
-@keyframes rot { to { transform:rotate(360deg); } }
-
-/* ── TYPE ── */
-.brand { font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.35em; text-transform:uppercase; color:var(--gold); text-align:center; margin-bottom:4px; }
-.title { font-family:'Playfair Display',serif; font-size:clamp(19px,4vw,25px); font-weight:900; color:var(--text); text-align:center; line-height:1.25; margin-bottom:5px; }
-.sub   { font-size:13px; color:var(--text-soft); text-align:center; font-style:italic; margin-bottom:24px; }
-
-.divider { display:flex; align-items:center; gap:12px; margin:22px 0; }
-.divider::before,.divider::after { content:''; flex:1; height:1px; background:linear-gradient(to right,transparent,var(--gold-light),transparent); }
-.divider span { color:var(--gold); font-size:11px; opacity:0.6; }
-
-/* ── QR BOX ── */
-.qr-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-.qr-box {
-  background: white;
-  padding: 16px;
-  border: 1px solid rgba(184,150,46,0.4);
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-  position: relative;
-}
-
-/* QR corner marks */
-.qr-box::before, .qr-box::after {
-  content: '';
-  position: absolute;
-  width: 18px; height: 18px;
-  border-color: var(--gold);
-  border-style: solid;
-}
-.qr-box::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
-.qr-box::after  { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
-
-#qrcode canvas, #qrcode img { display: block; }
-
-.qr-label {
-  font-family: 'Playfair Display', serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--text-soft);
-  text-align: center;
-}
-
-.qr-id {
-  font-size: 11px;
-  color: var(--gold);
-  font-family: monospace;
-  letter-spacing: 0.1em;
-  background: rgba(184,150,46,0.08);
-  padding: 4px 12px;
-  border-radius: 2px;
-  border: 1px solid rgba(184,150,46,0.2);
-}
-
-/* ── INFO TABLE ── */
-.info-row { display:flex; justify-content:space-between; align-items:flex-start; padding:9px 0; border-bottom:1px solid rgba(184,150,46,0.12); gap:12px; }
-.info-row:last-child { border-bottom:none; }
-.ik { font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-soft); white-space:nowrap; flex-shrink:0; }
-.iv { font-size:13px; color:var(--text); text-align:right; word-break:break-word; }
-
-/* ── FIELDS ── */
-.lbl { display:block; font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-soft); margin-bottom:7px; }
-.inp {
-  width:100%; padding:11px 14px; background:white;
-  border:1px solid rgba(184,150,46,0.35); border-radius:2px;
-  font-family:'Lora',serif; font-size:14px; color:var(--text);
-  outline:none; transition:border-color .2s,box-shadow .2s; margin-bottom:15px;
-}
-.inp:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(184,150,46,0.1); }
-textarea.inp { resize:vertical; min-height:75px; }
-
-/* ── BUTTONS ── */
-.btn { width:100%; padding:13px 24px; border:none; border-radius:2px; font-family:'Playfair Display',serif; font-size:12px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; cursor:pointer; transition:all .2s; }
-.btn:disabled { opacity:.5; cursor:not-allowed; }
-.btn-gold { background:linear-gradient(135deg,var(--gold-light),var(--gold),#9A7820); color:var(--ink); box-shadow:0 4px 18px rgba(184,150,46,0.3); }
-.btn-gold:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 28px rgba(184,150,46,0.4); }
-.btn-sm { background:transparent; color:var(--text-soft); border:1px solid rgba(184,150,46,0.3); margin-top:9px; font-size:11px; }
-.btn-sm:hover { border-color:var(--gold); color:var(--text); }
-.btn-ok  { background:linear-gradient(135deg,#2E7D32,#1B5E20); color:#fff; box-shadow:0 4px 18px rgba(46,125,50,.3); margin-bottom:9px; }
-.btn-ok:hover  { transform:translateY(-1px); box-shadow:0 8px 28px rgba(46,125,50,.4); }
-.btn-no  { background:linear-gradient(135deg,#C62828,#8B1A1A); color:#fff; box-shadow:0 4px 18px rgba(198,40,40,.3); }
-.btn-no:hover  { transform:translateY(-1px); box-shadow:0 8px 28px rgba(198,40,40,.4); }
-
-/* ── BADGES ── */
-.badge { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:2px; font-family:'Playfair Display',serif; font-size:10px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; }
-.b-wait { background:rgba(184,150,46,.12); color:var(--gold); border:1px solid rgba(184,150,46,.3); }
-.b-ok   { background:rgba(30,92,46,.12);  color:var(--green); border:1px solid rgba(30,92,46,.3); }
-.b-no   { background:rgba(139,26,26,.12); color:var(--red);   border:1px solid rgba(139,26,26,.3); }
-
-.spin { display:inline-block; width:12px; height:12px; border:2px solid var(--gold); border-top-color:transparent; border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle; margin-right:5px; }
-@keyframes sp { to { transform:rotate(360deg); } }
-
-/* ── CIRCLE ICONS ── */
-.circ { width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:32px; animation:pop .4s cubic-bezier(.34,1.56,.64,1) both; }
-.circ-ok { background:var(--green); box-shadow:0 0 0 5px rgba(30,92,46,.15),0 10px 35px rgba(0,0,0,.2); }
-.circ-no { background:var(--red);   box-shadow:0 0 0 5px rgba(139,26,26,.15),0 10px 35px rgba(0,0,0,.2); }
-@keyframes pop { from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
-
-.ai-box { background:rgba(61,31,107,.08); border-left:3px solid var(--purple); border-radius:0 3px 3px 0; padding:13px 15px; font-size:13px; color:var(--text); font-style:italic; margin:14px 0; line-height:1.65; }
-
-/* sig protection */
-#sig-img { max-height:110px; max-width:100%; display:block; margin:auto; pointer-events:none; -webkit-user-drag:none; user-select:none; }
-.sig-frame { background:white; border:1px solid rgba(184,150,46,.3); border-radius:2px; padding:20px; text-align:center; margin-bottom:10px; }
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Lora:ital,wght@0,400;1,400&display=swap');
+:root{--gold:#B8962E;--gl:#D4AF60;--ink:#0F0C08;--parch:#FAF6EE;--pd:#EDE4D0;--pur:#3D1F6B;--red:#8B1A1A;--grn:#1A5C2E;--txt:#2C1F0E;--ts:#5C4A30;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Lora',Georgia,serif;background:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 50% at 10% 10%,rgba(184,150,46,.07),transparent),radial-gradient(ellipse 50% 60% at 90% 90%,rgba(61,31,107,.13),transparent);pointer-events:none;}
+.screen{display:none;width:100%;max-width:560px;position:relative;z-index:1;animation:fu .45s ease both;}
+.screen.active{display:block;}
+@keyframes fu{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--parch);border-radius:3px;padding:40px 36px;position:relative;box-shadow:0 0 0 1px rgba(184,150,46,.55),0 0 0 5px var(--ink),0 0 0 6px rgba(184,150,46,.18),0 40px 90px rgba(0,0,0,.65);}
+.card::before{content:'';position:absolute;inset:10px;border:1px solid rgba(184,150,46,.2);border-radius:1px;pointer-events:none;}
+.cc{position:absolute;width:18px;height:18px;border-color:var(--gl);border-style:solid;opacity:.5;}
+.cc.tl{top:15px;left:15px;border-width:1px 0 0 1px}.cc.tr{top:15px;right:15px;border-width:1px 1px 0 0}.cc.bl{bottom:15px;left:15px;border-width:0 0 1px 1px}.cc.br{bottom:15px;right:15px;border-width:0 1px 1px 0}
+.seal{width:68px;height:68px;background:var(--pur);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:30px;box-shadow:0 0 0 3px var(--gold),0 0 0 6px var(--pd),0 8px 28px rgba(0,0,0,.3);position:relative;}
+.seal::after{content:'';position:absolute;inset:-9px;border:1px dashed rgba(184,150,46,.35);border-radius:50%;animation:rot 18s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg)}}
+.brand{font-family:'Playfair Display',serif;font-size:10px;font-weight:700;letter-spacing:.35em;text-transform:uppercase;color:var(--gold);text-align:center;margin-bottom:4px;}
+.title{font-family:'Playfair Display',serif;font-size:clamp(19px,4vw,25px);font-weight:900;color:var(--txt);text-align:center;line-height:1.25;margin-bottom:5px;}
+.sub{font-size:13px;color:var(--ts);text-align:center;font-style:italic;margin-bottom:24px;}
+.div{display:flex;align-items:center;gap:12px;margin:22px 0;}
+.div::before,.div::after{content:'';flex:1;height:1px;background:linear-gradient(to right,transparent,var(--gl),transparent);}
+.div span{color:var(--gold);font-size:11px;opacity:.6;}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:24px;}
+.qr-box{background:white;padding:16px;border:1px solid rgba(184,150,46,.4);border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,.12);position:relative;}
+.qr-box::before{content:'';position:absolute;top:-2px;left:-2px;width:18px;height:18px;border:2px solid var(--gold);border-right:none;border-bottom:none;}
+.qr-box::after{content:'';position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border:2px solid var(--gold);border-left:none;border-top:none;}
+#qrcode canvas{display:block;}
+.qr-lbl{font-family:'Playfair Display',serif;font-size:10px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:var(--ts);text-align:center;}
+.qr-id{font-size:11px;color:var(--gold);font-family:monospace;letter-spacing:.1em;background:rgba(184,150,46,.08);padding:4px 12px;border-radius:2px;border:1px solid rgba(184,150,46,.2);}
+.ir{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(184,150,46,.12);gap:12px;}
+.ir:last-child{border-bottom:none;}
+.ik{font-family:'Playfair Display',serif;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ts);white-space:nowrap;flex-shrink:0;}
+.iv{font-size:13px;color:var(--txt);text-align:right;word-break:break-word;}
+.lbl{display:block;font-family:'Playfair Display',serif;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ts);margin-bottom:7px;}
+.inp{width:100%;padding:11px 14px;background:white;border:1px solid rgba(184,150,46,.35);border-radius:2px;font-family:'Lora',serif;font-size:14px;color:var(--txt);outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:15px;}
+.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,150,46,.1);}
+textarea.inp{resize:vertical;min-height:75px;}
+.btn{width:100%;padding:13px 24px;border:none;border-radius:2px;font-family:'Playfair Display',serif;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.bg{background:linear-gradient(135deg,var(--gl),var(--gold),#9A7820);color:var(--ink);box-shadow:0 4px 18px rgba(184,150,46,.3);}
+.bg:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 28px rgba(184,150,46,.4);}
+.bs{background:transparent;color:var(--ts);border:1px solid rgba(184,150,46,.3);margin-top:9px;font-size:11px;}
+.bs:hover{border-color:var(--gold);color:var(--txt);}
+.bok{background:linear-gradient(135deg,#2E7D32,#1B5E20);color:#fff;box-shadow:0 4px 18px rgba(46,125,50,.3);margin-bottom:9px;}
+.bok:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(46,125,50,.4);}
+.bno{background:linear-gradient(135deg,#C62828,#8B1A1A);color:#fff;box-shadow:0 4px 18px rgba(198,40,40,.3);}
+.bno:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(198,40,40,.4);}
+.badge{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:2px;font-family:'Playfair Display',serif;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;}
+.bw{background:rgba(184,150,46,.12);color:var(--gold);border:1px solid rgba(184,150,46,.3);}
+.bo{background:rgba(30,92,46,.12);color:var(--grn);border:1px solid rgba(30,92,46,.3);}
+.bn{background:rgba(139,26,26,.12);color:var(--red);border:1px solid rgba(139,26,26,.3);}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:5px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.circ{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:32px;animation:pop .4s cubic-bezier(.34,1.56,.64,1) both;}
+.co{background:var(--grn);box-shadow:0 0 0 5px rgba(30,92,46,.15),0 10px 35px rgba(0,0,0,.2);}
+.cn{background:var(--red);box-shadow:0 0 0 5px rgba(139,26,26,.15),0 10px 35px rgba(0,0,0,.2);}
+@keyframes pop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.ai{background:rgba(61,31,107,.08);border-left:3px solid var(--pur);border-radius:0 3px 3px 0;padding:13px 15px;font-size:13px;color:var(--txt);font-style:italic;margin:14px 0;line-height:1.65;}
+#sig-img{max-height:110px;max-width:100%;display:block;margin:auto;pointer-events:none;-webkit-user-drag:none;user-select:none;}
+.sf{background:white;border:1px solid rgba(184,150,46,.3);border-radius:2px;padding:20px;text-align:center;margin-bottom:10px;}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════
-     SCREEN 0 – QR CODE (halaman utama)
-══════════════════════════════════════ -->
+<!-- SCREEN 0: QR -->
 <div class="screen active" id="s-qr">
-  <div class="card">
-    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
-
-    <div class="seal">🔏</div>
-    <div class="brand">Jurnal Penelitian · STT Arastamar Wamena</div>
-    <div class="title">Tanda Tangan Resmi</div>
-    <div class="sub">MEFORASH · Dokumen Terproteksi</div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <div class="qr-wrap">
-      <div class="qr-box">
-        <div id="qrcode"></div>
-      </div>
-      <div class="qr-label">Pindai untuk Meminta Akses</div>
-      <div class="qr-id" id="qr-doc-id">–</div>
-    </div>
-
-    <div style="margin-bottom:20px;">
-      <div class="info-row"><span class="ik">Dokumen</span><span class="iv">Tanda Tangan Resmi MEFORASH</span></div>
-      <div class="info-row"><span class="ik">Pemilik</span><span class="iv">pallongjunior@gmail.com</span></div>
-      <div class="info-row"><span class="ik">Status</span><span class="iv"><span class="badge b-wait">🔒 Terlindungi</span></span></div>
-      <div class="info-row"><span class="ik">Akses</span><span class="iv">Memerlukan Persetujuan</span></div>
-    </div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <p style="font-size:12px;color:var(--text-soft);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">
-      Tanda tangan ini dilindungi sistem otorisasi MEFORASH.<br>
-      Scan QR di atas atau klik tombol untuk mengajukan permintaan akses.
-    </p>
-
-    <button class="btn btn-gold" onclick="showScreen('s-form')">
-      Ajukan Permintaan Akses →
-    </button>
-  </div>
+<div class="card">
+<div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+<div class="seal">🔏</div>
+<div class="brand">Jurnal Penelitian · STT Arastamar Wamena</div>
+<div class="title">Tanda Tangan Resmi</div>
+<div class="sub">MEFORASH · Dokumen Terproteksi</div>
+<div class="div"><span>◆</span></div>
+<div class="qr-wrap">
+  <div class="qr-box"><div id="qrcode"></div></div>
+  <div class="qr-lbl">Pindai untuk Meminta Akses</div>
+  <div class="qr-id" id="qr-doc-id">–</div>
+</div>
+<div style="margin-bottom:20px;">
+  <div class="ir"><span class="ik">Dokumen</span><span class="iv">Tanda Tangan Resmi MEFORASH</span></div>
+  <div class="ir"><span class="ik">Pemilik</span><span class="iv">pallongjunior@gmail.com</span></div>
+  <div class="ir"><span class="ik">Status</span><span class="iv"><span class="badge bw">🔒 Terlindungi</span></span></div>
+  <div class="ir"><span class="ik">Akses</span><span class="iv">Memerlukan Persetujuan</span></div>
+</div>
+<div class="div"><span>◆</span></div>
+<p style="font-size:12px;color:var(--ts);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">Tanda tangan ini dilindungi sistem otorisasi MEFORASH.<br>Scan QR di atas atau klik tombol untuk mengajukan akses.</p>
+<button class="btn bg" onclick="show('s-form')">Ajukan Permintaan Akses →</button>
+</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     SCREEN 1 – FORM PERMINTAAN
-══════════════════════════════════════ -->
+<!-- SCREEN 1: FORM -->
 <div class="screen" id="s-form">
-  <div class="card">
-    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
-
-    <div class="seal" style="background:#5A3490;">📋</div>
-    <div class="brand">Formulir Akses</div>
-    <div class="title">Permintaan Verifikasi</div>
-    <div class="sub">Isi data diri untuk mengajukan akses tanda tangan</div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <label class="lbl">Nama Lengkap</label>
-    <input type="text" class="inp" id="f-name" placeholder="Nama lengkap Anda…">
-
-    <label class="lbl">Institusi / Afiliasi</label>
-    <input type="text" class="inp" id="f-inst" placeholder="Universitas / Lembaga…">
-
-    <label class="lbl">Email Anda</label>
-    <input type="email" class="inp" id="f-email" placeholder="email@anda.com">
-
-    <label class="lbl">Keperluan Akses</label>
-    <textarea class="inp" id="f-purpose" placeholder="Jelaskan keperluan Anda…"></textarea>
-
-    <button class="btn btn-gold" id="btn-submit" onclick="submitRequest()">
-      Kirim Permintaan →
-    </button>
-    <button class="btn btn-sm" onclick="showScreen('s-qr')">← Kembali ke QR Code</button>
-  </div>
+<div class="card">
+<div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+<div class="seal" style="background:#5A3490;">📋</div>
+<div class="brand">Formulir Akses</div>
+<div class="title">Permintaan Verifikasi</div>
+<div class="sub">Isi data diri untuk mengajukan akses tanda tangan</div>
+<div class="div"><span>◆</span></div>
+<label class="lbl">Nama Lengkap</label>
+<input type="text" class="inp" id="f-name" placeholder="Nama lengkap Anda…">
+<label class="lbl">Institusi / Afiliasi</label>
+<input type="text" class="inp" id="f-inst" placeholder="Universitas / Lembaga…">
+<label class="lbl">Email Anda</label>
+<input type="email" class="inp" id="f-email" placeholder="email@anda.com">
+<label class="lbl">Keperluan Akses</label>
+<textarea class="inp" id="f-purpose" placeholder="Jelaskan keperluan Anda…"></textarea>
+<button class="btn bg" id="btn-sub" onclick="submit()">Kirim Permintaan →</button>
+<button class="btn bs" onclick="show('s-qr')">← Kembali ke QR Code</button>
+</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     SCREEN 2 – MENUNGGU
-══════════════════════════════════════ -->
+<!-- SCREEN 2: WAITING -->
 <div class="screen" id="s-wait">
-  <div class="card">
-    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
-
-    <div class="seal" style="background:#7B5E00;">⏳</div>
-    <div class="brand">Status Permintaan</div>
-    <div class="title">Menunggu Persetujuan</div>
-    <div class="sub">Pemegang tanda tangan sedang meninjau permintaan Anda</div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <div id="wait-info"></div>
-
-    <div style="text-align:center;margin:16px 0;">
-      <span class="badge b-wait"><span class="spin"></span>Menunggu Keputusan</span>
-    </div>
-
-    <div class="ai-box" id="ai-wait">Menganalisis permintaan…</div>
-
-    <!-- PANEL ADMIN: hanya muncul jika ?admin=1 -->
-    <div id="admin-panel" style="display:none;">
-      <div class="divider"><span>◆</span></div>
-      <p class="lbl" style="text-align:center;margin-bottom:12px;">Panel Pemegang Tanda Tangan</p>
-      <div class="ai-box" id="ai-admin" style="margin-bottom:14px;"></div>
-      <button class="btn btn-ok" onclick="decide('ok')">✔ Setujui Akses</button>
-      <button class="btn btn-no" onclick="decide('no')">✖ Tolak Permintaan</button>
-    </div>
-
-    <button class="btn btn-sm" onclick="showScreen('s-qr')">← Kembali ke QR Code</button>
-  </div>
+<div class="card">
+<div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+<div class="seal" style="background:#7B5E00;">⏳</div>
+<div class="brand">Status Permintaan</div>
+<div class="title">Menunggu Persetujuan</div>
+<div class="sub">Pemegang tanda tangan sedang meninjau permintaan Anda</div>
+<div class="div"><span>◆</span></div>
+<div id="wi"></div>
+<div style="text-align:center;margin:16px 0;"><span class="badge bw"><span class="spin"></span>Menunggu Keputusan</span></div>
+<div class="ai" id="ai-w">Menganalisis permintaan…</div>
+<div id="adm" style="display:none;">
+  <div class="div"><span>◆</span></div>
+  <p class="lbl" style="text-align:center;margin-bottom:12px;">Panel Pemegang Tanda Tangan</p>
+  <div class="ai" id="ai-a" style="margin-bottom:14px;"></div>
+  <button class="btn bok" onclick="decide('ok')">✔ Setujui Akses</button>
+  <button class="btn bno" onclick="decide('no')">✖ Tolak Permintaan</button>
+</div>
+<button class="btn bs" onclick="show('s-qr')">← Kembali ke QR Code</button>
+</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     SCREEN 3 – DISETUJUI
-══════════════════════════════════════ -->
+<!-- SCREEN 3: APPROVED -->
 <div class="screen" id="s-ok">
-  <div class="card">
-    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
-
-    <div class="circ circ-ok">✓</div>
-    <div class="brand">Akses Disetujui</div>
-    <div class="title">Tanda Tangan Terverifikasi</div>
-    <div class="sub" id="ok-sub">Disetujui oleh pemegang tanda tangan</div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <div class="sig-frame">
-      <img id="sig-img" src="" alt="Tanda Tangan Resmi" draggable="false">
-    </div>
-
-    <div class="ai-box" id="ai-ok"></div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <div id="ok-info" style="margin-bottom:16px;"></div>
-    <div style="text-align:center;"><span class="badge b-ok">✓ Diverifikasi Resmi</span></div>
-    <p style="font-size:11px;color:var(--text-soft);font-style:italic;text-align:center;margin-top:14px;line-height:1.6;">
-      Akses ini berlaku satu sesi. Dilarang mendistribusikan tanpa izin.
-    </p>
-  </div>
+<div class="card">
+<div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+<div class="circ co">✓</div>
+<div class="brand">Akses Disetujui</div>
+<div class="title">Tanda Tangan Terverifikasi</div>
+<div class="sub" id="ok-sub">Disetujui oleh pemegang tanda tangan</div>
+<div class="div"><span>◆</span></div>
+<div class="sf"><img id="sig-img" src="" alt="Tanda Tangan Resmi" draggable="false"></div>
+<div class="ai" id="ai-ok"></div>
+<div class="div"><span>◆</span></div>
+<div id="ok-info" style="margin-bottom:16px;"></div>
+<div style="text-align:center;"><span class="badge bo">✓ Diverifikasi Resmi</span></div>
+<p style="font-size:11px;color:var(--ts);font-style:italic;text-align:center;margin-top:14px;line-height:1.6;">Akses ini berlaku satu sesi. Dilarang mendistribusikan tanpa izin.</p>
+</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     SCREEN 4 – DITOLAK
-══════════════════════════════════════ -->
+<!-- SCREEN 4: REJECTED -->
 <div class="screen" id="s-no">
-  <div class="card">
-    <div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
-
-    <div class="circ circ-no">✖</div>
-    <div class="brand">Akses Ditolak</div>
-    <div class="title">Permintaan Tidak Disetujui</div>
-    <div class="sub">Pemegang tanda tangan menolak permintaan ini</div>
-
-    <div class="divider"><span>◆</span></div>
-
-    <div class="ai-box" id="ai-no"></div>
-    <div style="text-align:center;margin:16px 0;"><span class="badge b-no">✖ Permintaan Ditolak</span></div>
-    <p style="font-size:12px;color:var(--text-soft);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">
-      Silakan ajukan kembali dengan informasi yang lebih lengkap.
-    </p>
-    <button class="btn btn-gold" onclick="showScreen('s-qr')">Kembali ke QR Code</button>
-  </div>
+<div class="card">
+<div class="cc tl"></div><div class="cc tr"></div><div class="cc bl"></div><div class="cc br"></div>
+<div class="circ cn">✖</div>
+<div class="brand">Akses Ditolak</div>
+<div class="title">Permintaan Tidak Disetujui</div>
+<div class="sub">Pemegang tanda tangan menolak permintaan ini</div>
+<div class="div"><span>◆</span></div>
+<div class="ai" id="ai-no"></div>
+<div style="text-align:center;margin:16px 0;"><span class="badge bn">✖ Permintaan Ditolak</span></div>
+<p style="font-size:12px;color:var(--ts);font-style:italic;text-align:center;line-height:1.6;margin-bottom:20px;">Silakan ajukan kembali dengan informasi yang lebih lengkap.</p>
+<button class="btn bg" onclick="show('s-qr')">Kembali ke QR Code</button>
+</div>
 </div>
 
 <script>
-// ════════════════════════════════
-//  CONFIG
-// ════════════════════════════════
-const OWNER   = 'pallongjunior@gmail.com';
-const DOC_ID  = 'MFR-' + Date.now().toString(36).toUpperCase();
-const VERIFY_URL = window.location.href.split('?')[0] + '?id=' + DOC_ID + '&admin=1';
+// ── CONFIG ──
+const OWNER='pallongjunior@gmail.com';
+const BASE='https://nayagh.github.io/meforash-signature/';
+const DID='MFR-'+Date.now().toString(36).toUpperCase();
+const VURL=BASE+'?id='+DID+'&admin=1';
+const SIG='IMG_7473.jpeg';
+let S={name:'',email:'',inst:'',purpose:''};
 
-// State
-let S = { name:'', email:'', inst:'', purpose:'' };
+// ════════════════════════════════════════════════════════
+//  PURE JS QR CODE — NO LIBRARIES, NO EXTERNAL REQUESTS
+// ════════════════════════════════════════════════════════
+const QRGen=(function(){
+  // GF(256)
+  const E=[],L=[];
+  (function(){let v=1;for(let i=0;i<256;i++){E[i]=v;L[v]=i;v=v<128?v*2:(v*2^0x11d);}E[255]=E[0];})();
+  const m=(a,b)=>a&&b?E[(L[a]+L[b])%255]:0;
 
-// ════════════════════════════════
-//  INIT – Generate QR Code
-// ════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('qr-doc-id').textContent = DOC_ID;
+  // RS generator poly
+  function rsg(n){let p=[1];for(let i=0;i<n;i++){const q=[1,E[i]],r=new Array(p.length+1).fill(0);for(let j=0;j<p.length;j++)for(let k=0;k<q.length;k++)r[j+k]^=m(p[j],q[k]);p=r;}return p;}
 
-  new QRCode(document.getElementById('qrcode'), {
-    text: VERIFY_URL,
-    width: 200,
-    height: 200,
-    colorDark: '#0F0C08',
-    colorLight: '#FFFFFF',
-    correctLevel: QRCode.CorrectLevel.H
-  });
+  // RS encode
+  function rse(d,n){const g=rsg(n),r=[...d,...new Array(n).fill(0)];for(let i=0;i<d.length;i++){const c=r[i];if(c)for(let j=0;j<g.length;j++)r[i+j]^=m(c,g[j]);}return r.slice(d.length);}
 
-  // If opened via scan (?admin=1), jump straight to admin waiting screen
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('admin') === '1') {
-    showScreen('s-wait');
-    document.getElementById('admin-panel').style.display = 'block';
-  }
-});
+  // Version table: [dataCW, ecCW, [[blocks,dataPerBlock],...]]
+  const V=[null,
+    [19,7,[[1,19]]],[34,10,[[1,34]]],[55,15,[[1,55]]],[80,20,[[2,40]]],
+    [108,26,[[2,54]]],[136,36,[[4,34]]],[156,40,[[4,39]]],
+    [194,48,[[2,38],[2,39]]],[232,60,[[3,36],[2,37]]],[274,72,[[4,43],[1,44]]]
+  ];
 
-// ════════════════════════════════
-//  SCREENS
-// ════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function fmt() {
-  return new Date().toLocaleString('id-ID', { dateStyle:'long', timeStyle:'short' });
-}
-
-function rows(arr) {
-  return arr.map(([k,v]) => `<div class="info-row"><span class="ik">${k}</span><span class="iv">${v}</span></div>`).join('');
-}
-
-// ════════════════════════════════
-//  CLAUDE API
-// ════════════════════════════════
-async function claude(system, user) {
-  try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system,
-        messages: [{ role:'user', content: user }]
-      })
-    });
-    const d = await r.json();
-    return d.content?.map(b => b.text||'').join('') || '–';
-  } catch(e) { return null; }
-}
-
-// ════════════════════════════════
-//  SUBMIT
-// ════════════════════════════════
-async function submitRequest() {
-  const name    = document.getElementById('f-name').value.trim();
-  const email   = document.getElementById('f-email').value.trim();
-  const inst    = document.getElementById('f-inst').value.trim();
-  const purpose = document.getElementById('f-purpose').value.trim();
-
-  if (!name || !email || !purpose) {
-    alert('Mohon lengkapi: Nama, Email, dan Keperluan.');
-    return;
+  function enc(txt){
+    // UTF-8 bytes
+    const by=[];
+    for(let i=0;i<txt.length;i++){
+      const c=txt.charCodeAt(i);
+      if(c<128)by.push(c);
+      else if(c<0x800)by.push(0xC0|(c>>6),0x80|(c&63));
+      else by.push(0xE0|(c>>12),0x80|((c>>6)&63),0x80|(c&63));
+    }
+    const n=by.length;
+    let ver=-1;for(let v=1;v<=10;v++)if(V[v][0]>=n+2){ver=v;break;}
+    if(ver<0)return null;
+    const[dc,ec,grp]=V[ver];
+    // bitstream
+    const b=[];
+    const pu=(v,l)=>{for(let i=l-1;i>=0;i--)b.push((v>>i)&1);};
+    pu(4,4);pu(n,8);by.forEach(x=>pu(x,8));
+    for(let i=0;i<4&&b.length<dc*8;i++)b.push(0);
+    while(b.length%8)b.push(0);
+    const pad=[0xEC,0x11];let pi=0;
+    while(b.length<dc*8)pu(pad[pi++%2],8);
+    const da=[];for(let i=0;i<b.length;i+=8){let x=0;for(let j=0;j<8;j++)x=(x<<1)|b[i+j];da.push(x);}
+    // blocks
+    const db=[],eb=[];let idx=0;
+    for(const[cnt,sz]of grp)for(let i=0;i<cnt;i++){db.push(da.slice(idx,idx+sz));idx+=sz;}
+    db.forEach(x=>eb.push(rse(x,ec)));
+    const cw=[],mx=Math.max(...db.map(x=>x.length));
+    for(let i=0;i<mx;i++)db.forEach(x=>{if(i<x.length)cw.push(x[i]);});
+    for(let i=0;i<ec;i++)eb.forEach(x=>cw.push(x[i]));
+    return{ver,cw};
   }
 
-  S = { name, email, inst: inst||'–', purpose };
+  const SZ=v=>v*4+17;
 
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Memproses…';
-
-  // Populate waiting screen info
-  document.getElementById('wait-info').innerHTML = rows([
-    ['ID Dokumen', DOC_ID],
-    ['Pemohon',    S.name],
-    ['Email',      S.email],
-    ['Institusi',  S.inst],
-    ['Keperluan',  S.purpose],
-    ['Waktu',      fmt()],
-  ]);
-
-  showScreen('s-wait');
-  btn.disabled = false;
-  btn.innerHTML = 'Kirim Permintaan →';
-
-  // AI pesan tunggu
-  const msg = await claude(
-    'Kamu adalah asisten resmi MEFORASH, jurnal STT Arastamar Wamena. Balas formal, ringkas (2-3 kalimat), Bahasa Indonesia.',
-    `${S.name} dari ${S.inst} meminta akses tanda tangan resmi. Alasan: "${S.purpose}". Tulis pesan konfirmasi bahwa permintaan diterima dan sedang menunggu persetujuan pemegang.`
-  );
-  document.getElementById('ai-wait').textContent = msg || 'Permintaan Anda telah diterima dan sedang menunggu persetujuan dari pemegang tanda tangan.';
-
-  // Admin panel jika ?admin=1
-  if (new URLSearchParams(window.location.search).get('admin') === '1') {
-    document.getElementById('admin-panel').style.display = 'block';
-    loadAdminAnalysis();
+  function mat(ver){
+    const s=SZ(ver),g=Array.from({length:s},()=>new Array(s).fill(null));
+    // finder
+    function fp(r,c){for(let dr=-1;dr<=7;dr++)for(let dc=-1;dc<=7;dc++){const rr=r+dr,cc=c+dc;if(rr>=0&&rr<s&&cc>=0&&cc<s){const ip=dr>=0&&dr<=6&&dc>=0&&dc<=6;g[rr][cc]=ip&&(dr===0||dr===6||dc===0||dc===6||(dr>=2&&dr<=4&&dc>=2&&dc<=4));}}}
+    fp(0,0);fp(0,s-7);fp(s-7,0);
+    // timing
+    for(let i=8;i<s-8;i++){if(g[6][i]===null)g[6][i]=(i%2===0);if(g[i][6]===null)g[i][6]=(i%2===0);}
+    // dark
+    g[s-8][8]=true;
+    // alignment
+    const AP={2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34],7:[6,22,38],8:[6,24,42],9:[6,28,46],10:[6,28,50]};
+    const ap=AP[ver]||[];
+    for(let i=0;i<ap.length;i++)for(let j=0;j<ap.length;j++){const r=ap[i],c=ap[j];if(g[r][c]!==null)continue;for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++)g[r+dr][c+dc]=(dr===0&&dc===0)||(Math.abs(dr)===2||Math.abs(dc)===2);}
+    // reserve format
+    for(let i=0;i<9;i++){if(g[8][i]===null)g[8][i]=false;if(g[i][8]===null)g[i][8]=false;}
+    for(let i=s-8;i<s;i++){if(g[8][i]===null)g[8][i]=false;if(g[i][8]===null)g[i][8]=false;}
+    return g;
   }
-}
 
-async function loadAdminAnalysis() {
-  const el = document.getElementById('ai-admin');
-  el.textContent = 'Menganalisis permintaan…';
-  const txt = await claude(
-    `Kamu asisten pribadi pemegang tanda tangan MEFORASH (${OWNER}). Evaluasi permintaan akses. Bahasa Indonesia formal, 3-4 kalimat.`,
-    `Nama: ${S.name} | Email: ${S.email} | Institusi: ${S.inst} | Keperluan: "${S.purpose}". Apakah permintaan ini legitimate? Beri rekomendasi singkat.`
-  );
-  el.textContent = txt || 'Harap tinjau permintaan ini secara manual.';
-}
-
-// ════════════════════════════════
-//  KEPUTUSAN
-// ════════════════════════════════
-async function decide(v) {
-  if (v === 'ok') {
-    // Tampilkan tanda tangan
-    document.getElementById('sig-img').src = 'IMG_7473.jpeg';
-    document.getElementById('ok-sub').textContent = `Disetujui oleh ${OWNER} pada ${fmt()}`;
-    document.getElementById('ok-info').innerHTML = rows([
-      ['ID Dokumen', DOC_ID],
-      ['Disetujui Untuk', S.name],
-      ['Email Pemohon', S.email],
-      ['Keperluan', S.purpose],
-      ['Waktu', fmt()],
-    ]);
-
-    const msg = await claude(
-      'Kamu sistem resmi MEFORASH. Pesan persetujuan resmi, formal, Bahasa Indonesia, 2-3 kalimat.',
-      `Akses tanda tangan DISETUJUI untuk ${S.name} (${S.email}). Keperluan: "${S.purpose}". Tulis konfirmasi resmi.`
-    );
-    document.getElementById('ai-ok').textContent = msg || 'Akses Anda telah disetujui secara resmi. Gunakan hanya untuk keperluan yang telah disebutkan.';
-    showScreen('s-ok');
-
-  } else {
-    const msg = await claude(
-      'Kamu sistem resmi MEFORASH. Pesan penolakan sopan tapi tegas, Bahasa Indonesia, 2-3 kalimat.',
-      `Permintaan dari ${S.name} DITOLAK oleh pemegang. Keperluan: "${S.purpose}". Tulis pesan penolakan resmi.`
-    );
-    document.getElementById('ai-no').textContent = msg || 'Permintaan Anda tidak dapat disetujui saat ini. Silakan ajukan kembali dengan informasi yang lebih lengkap.';
-    showScreen('s-no');
-  }
-}
-
-// ════════════════════════════════
-//  PROTEKSI TANDA TANGAN
-// ════════════════════════════════
-document.addEventListener('contextmenu', e => {
-  if (e.target.id === 'sig-img') { e.preventDefault(); alert('Tanda tangan dilindungi sistem MEFORASH.'); }
-});
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey||e.metaKey) && ['p','s','c'].includes(e.key)) {
-    if (document.getElementById('s-ok').classList.contains('active')) {
-      e.preventDefault();
-      alert('Penyimpanan dinonaktifkan oleh sistem proteksi MEFORASH.');
+  function place(g,cw,ver){
+    const s=SZ(ver),b=[];
+    cw.forEach(x=>{for(let i=7;i>=0;i--)b.push((x>>i)&1);});
+    let bi=0;
+    for(let col=s-1;col>=1;col-=2){
+      if(col===6)col=5;
+      for(let row=0;row<s;row++){
+        const r=(Math.floor((s-1-col)/2)%2===0)?row:s-1-row;
+        for(let d=0;d<=1;d++){const c=col-d;if(g[r][c]===null)g[r][c]=bi<b.length?b[bi++]===1:false;}
+      }
     }
   }
+
+  function isDat(g,r,c,ver){
+    const s=SZ(ver);
+    if(r<9&&c<9)return false;if(r<9&&c>s-9)return false;if(r>s-9&&c<9)return false;
+    if(r===6||c===6)return false;if(r===8||c===8)return false;
+    return true;
+  }
+
+  function applyMask(g,ver){
+    const s=SZ(ver);
+    for(let r=0;r<s;r++)for(let c=0;c<s;c++)
+      if(typeof g[r][c]==='boolean'&&isDat(g,r,c,ver)&&(r+c)%2===0)g[r][c]=!g[r][c];
+  }
+
+  // Format string for ECC=M, mask=0: 101010000010010
+  function writeFmt(g,ver){
+    const s=SZ(ver),f=[1,0,1,0,1,0,0,0,0,0,1,0,0,1,0];
+    for(let i=0;i<6;i++){g[8][i]=f[i];g[i][8]=f[14-i];}
+    g[8][7]=f[6];g[7][8]=f[8];g[8][8]=f[7];
+    g[s-8][8]=true;
+    for(let i=0;i<7;i++)g[8][s-7+i]=f[8+i];
+    for(let i=0;i<7;i++)g[s-7+i][8]=f[6-i];
+  }
+
+  function draw(txt,el,px){
+    px=px||5;
+    const r=enc(txt);
+    if(!r){el.innerHTML='<p style="color:red">QR Error: URL terlalu panjang</p>';return;}
+    const{ver,cw}=r;
+    const g=mat(ver);place(g,cw,ver);applyMask(g,ver);writeFmt(g,ver);
+    const s=SZ(ver),q=4,tot=(s+q*2)*px;
+    const cv=document.createElement('canvas');
+    cv.width=cv.height=tot;cv.style.imageRendering='pixelated';
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,tot,tot);
+    ctx.fillStyle='#000';
+    for(let row=0;row<s;row++)for(let col=0;col<s;col++)
+      if(g[row][col])ctx.fillRect((col+q)*px,(row+q)*px,px,px);
+    el.innerHTML='';el.appendChild(cv);
+  }
+  return{draw};
+})();
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('qr-doc-id').textContent=DID;
+  QRGen.draw(VURL, document.getElementById('qrcode'), 5);
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('admin')==='1'){show('s-wait');document.getElementById('adm').style.display='block';}
 });
+
+// ── SCREENS ──
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function fmt(){return new Date().toLocaleString('id-ID',{dateStyle:'long',timeStyle:'short'});}
+function rows(a){return a.map(([k,v])=>`<div class="ir"><span class="ik">${k}</span><span class="iv">${v}</span></div>`).join('');}
+
+// ── CLAUDE ──
+async function ai(sys,usr){
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:usr}]})});
+    const d=await r.json();return d.content?.map(b=>b.text||'').join('')||null;
+  }catch(e){return null;}
+}
+
+// ── SUBMIT ──
+async function submit(){
+  const name=document.getElementById('f-name').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const inst=document.getElementById('f-inst').value.trim();
+  const purpose=document.getElementById('f-purpose').value.trim();
+  if(!name||!email||!purpose){alert('Mohon lengkapi: Nama, Email, dan Keperluan.');return;}
+  S={name,email,inst:inst||'–',purpose};
+  const btn=document.getElementById('btn-sub');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Memproses…';
+  document.getElementById('wi').innerHTML=rows([['ID Dokumen',DID],['Pemohon',S.name],['Email',S.email],['Institusi',S.inst],['Keperluan',S.purpose],['Waktu',fmt()]]);
+  show('s-wait');
+  btn.disabled=false;btn.innerHTML='Kirim Permintaan →';
+  const msg=await ai('Kamu asisten resmi MEFORASH, jurnal STT Arastamar Wamena. Balas formal, ringkas 2-3 kalimat, Bahasa Indonesia.',`${S.name} dari ${S.inst} meminta akses tanda tangan. Alasan: "${S.purpose}". Konfirmasi permintaan diterima dan menunggu persetujuan.`);
+  document.getElementById('ai-w').textContent=msg||'Permintaan Anda telah diterima dan sedang menunggu persetujuan dari pemegang tanda tangan.';
+  if(new URLSearchParams(window.location.search).get('admin')==='1'){document.getElementById('adm').style.display='block';loadAdmin();}
+}
+
+async function loadAdmin(){
+  const el=document.getElementById('ai-a');el.textContent='Menganalisis…';
+  const t=await ai(`Kamu asisten pribadi pemegang tanda tangan MEFORASH (${OWNER}). Evaluasi permintaan. Bahasa Indonesia formal, 3-4 kalimat.`,`Nama:${S.name} Email:${S.email} Institusi:${S.inst} Keperluan:"${S.purpose}". Apakah legitimate? Rekomendasi?`);
+  el.textContent=t||'Tinjau permintaan ini secara manual.';
+}
+
+// ── DECIDE ──
+async function decide(v){
+  if(v==='ok'){
+    document.getElementById('sig-img').src=SIG;
+    document.getElementById('ok-sub').textContent=`Disetujui oleh ${OWNER} pada ${fmt()}`;
+    document.getElementById('ok-info').innerHTML=rows([['ID Dokumen',DID],['Disetujui Untuk',S.name],['Email',S.email],['Keperluan',S.purpose],['Waktu',fmt()]]);
+    const msg=await ai('Kamu sistem MEFORASH. Pesan persetujuan resmi, formal, Bahasa Indonesia, 2-3 kalimat.',`Akses DISETUJUI untuk ${S.name} (${S.email}). Keperluan:"${S.purpose}".`);
+    document.getElementById('ai-ok').textContent=msg||'Akses Anda telah disetujui secara resmi. Gunakan hanya untuk keperluan yang disebutkan.';
+    show('s-ok');
+  } else {
+    const msg=await ai('Kamu sistem MEFORASH. Pesan penolakan sopan tapi tegas, Bahasa Indonesia, 2-3 kalimat.',`Permintaan dari ${S.name} DITOLAK. Keperluan:"${S.purpose}".`);
+    document.getElementById('ai-no').textContent=msg||'Permintaan Anda tidak dapat disetujui saat ini.';
+    show('s-no');
+  }
+}
+
+// ── PROTEKSI ──
+document.addEventListener('contextmenu',e=>{if(e.target.id==='sig-img'){e.preventDefault();alert('Tanda tangan dilindungi sistem MEFORASH.');}});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['p','s','c'].includes(e.key)&&document.getElementById('s-ok').classList.contains('active')){e.preventDefault();alert('Penyimpanan dinonaktifkan oleh sistem proteksi MEFORASH.');}});
 </script>
 </body>
 </html>
